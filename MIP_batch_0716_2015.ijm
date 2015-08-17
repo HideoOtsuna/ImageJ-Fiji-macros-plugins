@@ -1,7 +1,8 @@
-//Hideo Otsuna (HHMI Janelia Research Campus), June 4, 2015
+//Wrote by Hideo Otsuna (HHMI Janelia Research Campus), Aug 4, 2015
 
-autothre=0;//1 is FIJI'S threshold
-multiDSLT=1;// multi step DSLT for better sensitivity
+autothre=0;//1 is FIJI'S threshold, 0 is DSLT thresholding
+multiDSLT=1;// 1 is multi step DSLT for better thresholding sensitivity
+measurement="No";// Yes will measure the shape of signals (for nc82 shape database creation)
 
 setBatchMode(true);
 compCC=0;// 1 is compressed nrrd, 0 is not compressed nrrd
@@ -137,20 +138,20 @@ Dialog.addNumber("Ending MIP slice, larger number will be the last slice", endMI
 
 Dialog.show();
 //exporttype = Dialog.getRadioButton();
-subfolder=Dialog.getCheckbox();
-colorcoding=Dialog.getCheckbox();
-AutoBRV=Dialog.getCheckbox();
-CLAHE=Dialog.getCheckbox();
-blockmode=Dialog.getCheckbox();
-colorscale=Dialog.getCheckbox();
-reverse0=Dialog.getCheckbox();
+subfolder=Dialog.getCheckbox();// supporting sub folders
+colorcoding=Dialog.getCheckbox();//color depth MIP
+AutoBRV=Dialog.getCheckbox();//auto-brightness adjustment
+CLAHE=Dialog.getCheckbox();//CLAHE
+blockmode=Dialog.getCheckbox();//block mode for larger number of files
+colorscale=Dialog.getCheckbox();//adding color depth scale bar
+reverse0=Dialog.getCheckbox();//reverse color for front back inverted signal
 
-manualST= Dialog.getRadioButton();
-savestring = Dialog.getRadioButton();
-usingLUT = Dialog.getRadioButton();
-lowthreM = Dialog.getRadioButton();
-startMIP=Dialog.getNumber();
-endMIP=Dialog.getNumber();
+manualST= Dialog.getRadioButton();//manually neuron channel set only for 1 st time
+savestring = Dialog.getRadioButton();//saving place
+usingLUT = Dialog.getRadioButton();//LUT, "PsychedelicRainBow2" is for Color MIP mask search, "royal" is for better looiking
+lowthreM = Dialog.getRadioButton();//background thresholding
+startMIP=Dialog.getNumber();//MIP starting slice
+endMIP=Dialog.getNumber();//MIP ending slice
 
 blockON=false;
 dirCOLOR=0;
@@ -410,16 +411,18 @@ for (i=startn; i<endn; i++){
 	}
 }//for (i=startn; i<endn; i++){
 
-resultnum=nResults();
-IJ.deleteRows(1, resultnum);
+if(measurement=="Yes"){//shape measurement
+	resultnum=nResults();
+	IJ.deleteRows(1, resultnum);
 
-for(resultNum=0; resultNum<endn-startn; resultNum++){
-	setResult("Circulicity", resultNum, Circulicity[resultNum]);
-	setResult("Roundness", resultNum, Roundness[resultNum]);
-	setResult("ratio(perim/size)", resultNum, ratio[resultNum]);
-	setResult("AR", resultNum, AR[resultNum]);
-	setResult("Size", resultNum, areasizeM[resultNum]);
-	setResult("Perim", resultNum, perimLM[resultNum]);
+	for(resultNum=0; resultNum<endn-startn; resultNum++){
+		setResult("Circulicity", resultNum, Circulicity[resultNum]);
+		setResult("Roundness", resultNum, Roundness[resultNum]);
+		setResult("ratio(perim/size)", resultNum, ratio[resultNum]);
+		setResult("AR", resultNum, AR[resultNum]);
+		setResult("Size", resultNum, areasizeM[resultNum]);
+		setResult("Perim", resultNum, perimLM[resultNum]);
+	}
 }
 
 /////////Function//////////////////////////////////////////////////////////////////
@@ -469,13 +472,13 @@ function mipfunction(mipbatch) {
 	
 	dotIndexMha = lastIndexOf(listP, "mha");
 	dotIndexV3 = lastIndexOf(listP, "v3dpbd");
-//	dotIndexLSM = lastIndexOf(listP, "lsm");
+	dotIndexLSM = lastIndexOf(listP, "lsm");
 	dotIndex = lastIndexOf(listP, "nrrd");
 	dotIndexAM = lastIndexOf(listP, "am");
 	dotIndextif = lastIndexOf(listP, "tif");
 	dotIndexTIFF = lastIndexOf(listP, "TIFF");
-	dotIndexzip = lastIndexOf(listP, "zip");
-	dotIndexVNC = lastIndexOf(listP, "v_");
+	dotIndexzip = lastIndexOf(listP, "C1.zip");
+	//dotIndexVNC = lastIndexOf(listP, "v_");
 	
 	listsave=getFileList(dirCOLOR);
 	filepathcolor=0;
@@ -499,16 +502,14 @@ function mipfunction(mipbatch) {
 		}
 	}
 	
-	if(filepathcolor==1 || dotIndextif==-1 && dotIndexzip== -1 && dotIndexTIFF==-1 && dotIndex==-1 && dotIndexAM==-1 && dotIndexLSM==-1 && dotIndexMha==-1 && dotIndexVNC==-1){
+	if(filepathcolor==1 || dotIndexVNC==-1 && dotIndextif==-1 && dotIndexzip== -1 && dotIndexTIFF==-1 && dotIndex==-1 && dotIndexAM==-1 && dotIndexLSM==-1 && dotIndexMha==-1){
 		print("Skipped; "+i+"; 	 "+listP);
 	}else{
 		
-		if(compCC==0){// if not compressed
-			if(dotIndex>-1 || dotIndexAM>-1){
-				run("Bio-Formats Importer", "open="+path+" autoscale color_mode=Default view=[Standard ImageJ] stack_order=Default");
-			}
+		if(dotIndexAM>-1 || dotIndex>-1 && compCC==1){// if not compressed
+			run("Bio-Formats Importer", "open="+path+" autoscale color_mode=Default view=[Standard ImageJ] stack_order=Default");
 		}
-		if(dotIndexVNC>-1 || dotIndextif>-1 || dotIndexTIFF>-1 || compCC==1 || dotIndexLSM>-1 || dotIndexV3>-1 || dotIndexMha>-1 || dotIndexzip>-1){
+		if(dotIndextif>-1 || dotIndexTIFF>-1 || compCC==1 || dotIndexLSM>-1 || dotIndexV3>-1 || dotIndexMha>-1 || dotIndexzip>-1 || dotIndexVNC>-1 || dotIndex>-1 && compCC==0){
 			open(path);// for tif, comp nrrd, lsm", am, v3dpbd, mha
 		}
 		print(listP+"	 ;	 "+i+" / "+endn);
@@ -523,7 +524,7 @@ function mipfunction(mipbatch) {
 		origiMIP = substring(origi, 0, dotIndex); // remove extension
 		
 		if(channels==2 || channels==3 ){
-			if(defaultNoCH!=channels){
+			if(defaultNoCH!=channels && defaultNoCH!=0){
 				channels=0;
 				AutoBRV=0;
 				colorcoding=0;
@@ -664,7 +665,7 @@ function mipfunction(mipbatch) {
 		//			print(Ch[imageN]);
 		//		}
 				Ch=getList("image.titles");
-	
+				
 				for(iamgen=0; iamgen<channels; iamgen++){
 					
 					selectWindow(Ch[iamgen]);
@@ -771,7 +772,7 @@ function mipfunction(mipbatch) {
 					print(iamgen+";  maxsize; "+maxsize+"  ratio; "+ratio+"  amount; "+amount+"  Circulicity; "+Circulicity);
 				}//for(iamgen=0; iamgen<channels; iamgen++){
 				
-				defaultM=100; defaultsize=0; defaultamout=0; defaultcirc=0; amountgap=0; sizegap=0;
+				defaultM=100; defaultsize=0; defaultamout=0; defaultcirc=0; amountgap=0; sizegap=0; nc82Amount=0; nc82Size=0; nc82Ratio=0; nc82Circu=0;
 				
 				for(chnum0=0; chnum0<channels; chnum0++){
 					ratiocomp=List.get("ratio"+chnum0);
@@ -907,39 +908,41 @@ function mipfunction(mipbatch) {
 					close();
 				}
 				
-				run("Z Project...", "start=1 stop="+nSlices+" projection=[Average Intensity]");
-				run("8-bit");
-				maxP=getTitle();
-				
-				//setAutoThreshold("Huang dark");
-				setAutoThreshold("Intermodes dark");
-				
-				getThreshold(lower, upper);
-				setThreshold(lower, upper);
-				
-				setOption("BlackBackground", true);
-				run("Convert to Mask");
-				
-				run("Make Binary");
-				run("Analyze Particles...", "size=100.00-Infinity circularity=0.00-1.00 show=Nothing display clear");
-				maxsize=0; maxperim=0;
-				updateResults();
-				for(getresult=0; getresult<nResults; getresult++){
-					areasize=getResult("Area", getresult);
-					perimL=getResult("Perim.", getresult);
-	//				print("perimL; "+perimL);
+				if(measurement=="Yes"){
+					run("Z Project...", "start=1 stop="+nSlices+" projection=[Average Intensity]");
+					run("8-bit");
+					maxP=getTitle();
 					
-					if(areasize>=maxsize){
-						maxsize=areasize;
-						maxperim=perimL;
-						Circulicity=getResult("Circ.", getresult);
-						Roundness=getResult("Round", getresult);
-						AR=getResult("AR", getresult);
-						areasizeM=getResult("Area", getresult);
-						perimLM=getResult("Perim.", getresult);
-				//		print("AR; "+AR);
+					//setAutoThreshold("Huang dark");
+					setAutoThreshold("Intermodes dark");
+					
+					getThreshold(lower, upper);
+					setThreshold(lower, upper);
+					
+					setOption("BlackBackground", true);
+					run("Convert to Mask");
+					
+					run("Make Binary");
+					run("Analyze Particles...", "size=100.00-Infinity circularity=0.00-1.00 show=Nothing display clear");
+					maxsize=0; maxperim=0;
+					updateResults();
+					for(getresult=0; getresult<nResults; getresult++){
+						areasize=getResult("Area", getresult);
+						perimL=getResult("Perim.", getresult);
+		//				print("perimL; "+perimL);
+						
+						if(areasize>=maxsize){
+							maxsize=areasize;
+							maxperim=perimL;
+							Circulicity=getResult("Circ.", getresult);
+							Roundness=getResult("Round", getresult);
+							AR=getResult("AR", getresult);
+							areasizeM=getResult("Area", getresult);
+							perimLM=getResult("Perim.", getresult);
+					//		print("AR; "+AR);
+						}
 					}
-				}
+				}//if(measurement=="Yes"){
 			}//	if(manual==1){
 			
 		//	print("901AR; "+AR);
@@ -973,14 +976,14 @@ function mipfunction(mipbatch) {
 		basicoperation(bitd);//rename MIP.tif
 			
 		if(AutoBRV==1){//to get brightness value from MIP
-				selectWindow("MIP.tif");
-				briadj=newArray(desiredmean, 0, 0, 0,lowerweight,lowthreM);
-				autobradjustment(briadj);
-				applyV=briadj[2];
-				sigsize=briadj[1];
-				sigsizethre=briadj[3];
-				sigsizethre=round(sigsizethre);
-				sigsize=round(sigsize);
+			selectWindow("MIP.tif");
+			briadj=newArray(desiredmean, 0, 0, 0,lowerweight,lowthreM,autothre);
+			autobradjustment(briadj);
+			applyV=briadj[2];
+			sigsize=briadj[1];
+			sigsizethre=briadj[3];
+			sigsizethre=round(sigsizethre);
+			sigsize=round(sigsize);
 			
 
 				
@@ -1022,18 +1025,28 @@ function mipfunction(mipbatch) {
 			selectWindow(neuronCH);
 			
 			if(AutoBRV==1)
-			brightnessapply(applyV, bitd);
+			brightnessapply(applyV, bitd,lowerweight);
 				
 			if(reverse0==1)
 			run("Reverse");
 				
 			if(usingLUT=="royal")
 			stackconcatinate();
-				
+			
+			if(AutoBRV==0){
+				applyV=255;
+				if(bitd==16){
+					setMinAndMax(0, 65535);
+					run("8-bit");
+				}
+			}
+			
 			TimeLapseColorCoder(slices, applyV, width, AutoBRV, bitd, CLAHE, colorscale, reverse0, colorcoding, usingLUT);
-				
+			
+			if(AutoBRV==1)
 			save(myDir2Co+origiMIP+"_"+applyV+"_DSLT"+sigsize+"_thre"+sigsizethre+".tif");
-				
+			else
+			save(myDir2Co+origiMIP+".tif");
 			close();
 			
 			if(channels==1)
@@ -1042,6 +1055,7 @@ function mipfunction(mipbatch) {
 			if(channels==2 || channels==3 )
 			selectWindow(neuronCH);
 			close();
+			
 		}//if(colorcoding==1){
 		run("Close All");
 
@@ -1071,6 +1085,7 @@ function autobradjustment(briadj){
 
 	lowerweight=briadj[4];
 	lowthreM=briadj[5];
+	autothre=briadj[6];
 	if(autothre==1)//Fiji Original thresholding
 	run("Duplicate...", "title=test.tif");
 	
@@ -1268,7 +1283,7 @@ function autobradjustment(briadj){
 		print("Double DSLT");
 	//	run("Multibit thresholdtwo", "w/b=Set_black max=207 in=[In macro]");
 		
-		desiredmean=230;//230 for GMR
+		desiredmean=240;//230 for GMR
 		
 		dsltarray=newArray(autothre, bitd, totalpix, desiredmean, 0);
 		DSLTfun(dsltarray);//will generate test.tif DSLT thresholded mask
@@ -1460,7 +1475,7 @@ function stackconcatinate(){
 	}
 }
 
-function brightnessapply(applyV, bitd){
+function brightnessapply(applyV, bitd,lowerweight){
 stacktoApply=getTitle();
 	if(bitd==8){
 		
@@ -1474,10 +1489,6 @@ stacktoApply=getTitle();
 		
 				setMinAndMax(0, applyV);
 				run("Apply LUT");
-
-
-item5=newArray("Peak Histogram", "Auto-threshold");
-Dialog.addRadioButtonGroup("Lower thresholding method", item5, 1, 2, lowthreM); 
 
 
 				if(lowthreM=="Peak Histogram"){
@@ -1647,10 +1658,11 @@ function TimeLapseColorCoder(slicesOri, applyV, width, AutoBRV, bitd, CLAHE, GFr
 				if(bitd==16)
 				drawString("Max: 0"+applyV+" /255", width-150, 78);
 			}
+			setMetadata("Label", applyV+"	 DSLT; 	"+sigsize+"	Thre; 	"+sigsizethre);
 		}//if(AutoBRV==1){
 	}//if (GFrameColorScaleCheck==1){
 	run("Select All");
-	setMetadata("Label", applyV+"	 DSLT; 	"+sigsize+"	Thre; 	"+sigsizethre);
+
 }//function TimeLapseColorCoder(slicesOri, applyV, width, AutoBRV, bitd) {//"Time-Lapse Color Coder" 
 	
 function CreateScale(lutstr, beginf, endf, reverse0){
